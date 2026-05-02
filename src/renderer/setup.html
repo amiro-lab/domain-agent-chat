@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>domain-agent 초기 설정</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --bg: #0f1117; --bg2: #1a1d27; --bg3: #242838;
+  --border: #2e3347; --text: #e2e8f0; --muted: #64748b;
+  --green: #4ade80; --blue: #60a5fa; --red: #f87171;
+}
+html, body { width: 100%; height: 100%; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 14px; display: flex; flex-direction: column;
+  -webkit-app-region: drag;
+}
+.titlebar { height: 28px; flex-shrink: 0; }
+
+.content {
+  flex: 1; display: flex; flex-direction: column;
+  padding: 0 28px 24px; overflow: hidden;
+  -webkit-app-region: no-drag;
+}
+
+.logo { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+.logo span { color: var(--green); }
+.subtitle { font-size: 12px; color: var(--muted); margin-bottom: 24px; }
+
+/* 스텝 인디케이터 */
+.steps { display: flex; gap: 6px; margin-bottom: 24px; }
+.step-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border); transition: background .2s; }
+.step-dot.active { background: var(--blue); }
+.step-dot.done { background: var(--green); }
+
+/* 스텝 컨텐츠 */
+.step { display: none; flex-direction: column; flex: 1; }
+.step.active { display: flex; }
+.step-title { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+.step-desc { font-size: 12px; color: var(--muted); margin-bottom: 20px; line-height: 1.5; }
+
+/* 폼 */
+.field { margin-bottom: 14px; }
+.field label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 5px; text-transform: uppercase; letter-spacing: .04em; }
+.field input {
+  width: 100%; background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 9px 12px; color: var(--text); font-size: 13px; outline: none;
+}
+.field input:focus { border-color: var(--blue); }
+
+/* 팀 목록 */
+.team-list { flex: 1; overflow-y: auto; margin-bottom: 14px; display: flex; flex-direction: column; gap: 6px; }
+.team-item {
+  background: var(--bg2); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 14px; cursor: pointer; transition: all .15s; display: flex; align-items: center; justify-content: space-between;
+}
+.team-item:hover { border-color: var(--blue); }
+.team-item.selected { border-color: var(--blue); background: #60a5fa11; }
+.team-name { font-size: 13px; font-weight: 500; }
+.team-count { font-size: 11px; color: var(--muted); }
+.no-teams { text-align: center; padding: 20px; color: var(--muted); font-size: 13px; }
+
+/* 버튼 */
+.btn-row { display: flex; gap: 8px; margin-top: auto; padding-top: 12px; }
+.btn { flex: 1; padding: 10px; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: opacity .2s; }
+.btn:hover { opacity: .85; }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+.btn-primary { background: var(--blue); color: #fff; }
+.btn-secondary { background: var(--bg3); color: var(--muted); flex: 0 0 auto; padding: 10px 16px; }
+
+/* 완료 */
+.done-icon { font-size: 40px; text-align: center; margin: 12px 0; }
+.done-info { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; margin-bottom: 14px; }
+.done-info-row { display: flex; justify-content: space-between; font-size: 12px; padding: 3px 0; }
+.done-info-row .label { color: var(--muted); }
+
+.error { color: var(--red); font-size: 12px; margin-top: 8px; }
+.loading-text { color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="titlebar"></div>
+<div class="content">
+  <div class="logo">domain<span>-agent</span></div>
+  <div class="subtitle">팀 도메인 지식 자동 학습 · 초기 설정</div>
+
+  <div class="steps" id="step-dots"></div>
+
+  <!-- Step 1: 서버 URL -->
+  <div class="step active" id="step-0">
+    <div class="step-title">서버 주소 입력</div>
+    <div class="step-desc">관리자에게 받은 domain-agent 서버 주소를 입력하세요.</div>
+    <div class="field">
+      <label>서버 URL</label>
+      <input type="url" id="server-url" placeholder="https://domain-agent.yourcompany.com" onkeydown="if(event.key==='Enter')next()">
+    </div>
+    <div class="error" id="err-0"></div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="next()">다음</button>
+    </div>
+  </div>
+
+  <!-- Step 2: 팀 선택 -->
+  <div class="step" id="step-1">
+    <div class="step-title">팀 선택</div>
+    <div class="step-desc">가입할 팀을 선택하세요.</div>
+    <div class="team-list" id="team-list"><div class="no-teams loading-text">팀 목록 불러오는 중...</div></div>
+    <div class="error" id="err-1"></div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="prev()">이전</button>
+      <button class="btn btn-primary" id="btn-team-next" onclick="next()" disabled>다음</button>
+    </div>
+  </div>
+
+  <!-- Step 3: 내 정보 -->
+  <div class="step" id="step-2">
+    <div class="step-title">내 정보 입력</div>
+    <div class="step-desc">팀에 등록될 이름과 이메일을 입력하세요.<br>이메일로 재가입 시 기존 계정이 연동됩니다.</div>
+    <div class="field">
+      <label>이름</label>
+      <input type="text" id="member-name" placeholder="홍길동" onkeydown="if(event.key==='Enter')document.getElementById('member-email').focus()">
+    </div>
+    <div class="field">
+      <label>이메일</label>
+      <input type="email" id="member-email" placeholder="you@company.com" onkeydown="if(event.key==='Enter')document.getElementById('join-code').focus()">
+    </div>
+    <div class="field">
+      <label>초대 코드</label>
+      <input type="text" id="join-code" placeholder="관리자에게 받은 코드" onkeydown="if(event.key==='Enter')next()">
+    </div>
+    <div class="error" id="err-2"></div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="prev()">이전</button>
+      <button class="btn btn-primary" onclick="next()">가입하기</button>
+    </div>
+  </div>
+
+  <!-- Step 4: 완료 -->
+  <div class="step" id="step-3">
+    <div class="done-icon">✅</div>
+    <div class="step-title" style="text-align:center;margin-bottom:14px">설정 완료!</div>
+    <div class="done-info" id="done-info"></div>
+    <div class="step-desc" style="text-align:center">
+      이제 ChatGPT 또는 Claude.ai에서 대화하면<br>
+      도메인 지식이 자동으로 팀에 공유됩니다.
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="finish()">시작하기</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const STEPS = 4
+let currentStep = 0
+let selectedTeam = null
+let teams = []
+
+// 스텝 인디케이터 생성
+const dotsEl = document.getElementById('step-dots')
+for (let i = 0; i < STEPS; i++) {
+  const d = document.createElement('div')
+  d.className = 'step-dot' + (i === 0 ? ' active' : '')
+  d.id = 'dot-' + i
+  dotsEl.appendChild(d)
+}
+
+function updateDots() {
+  for (let i = 0; i < STEPS; i++) {
+    const d = document.getElementById('dot-' + i)
+    d.className = 'step-dot' + (i < currentStep ? ' done' : i === currentStep ? ' active' : '')
+  }
+}
+
+function showStep(n) {
+  document.querySelectorAll('.step').forEach(s => s.classList.remove('active'))
+  document.getElementById('step-' + n).classList.add('active')
+  currentStep = n
+  updateDots()
+}
+
+function setErr(step, msg) {
+  const el = document.getElementById('err-' + step)
+  if (el) el.textContent = msg
+}
+
+async function next() {
+  if (currentStep === 0) {
+    // 서버 URL 검증
+    const url = document.getElementById('server-url').value.trim()
+    if (!url) return setErr(0, 'URL을 입력하세요')
+    setErr(0, '')
+    await loadTeams(url)
+
+  } else if (currentStep === 1) {
+    if (!selectedTeam) return setErr(1, '팀을 선택하세요')
+    showStep(2)
+
+  } else if (currentStep === 2) {
+    const name = document.getElementById('member-name').value.trim()
+    const email = document.getElementById('member-email').value.trim()
+    const code = document.getElementById('join-code').value.trim()
+    if (!name) return setErr(2, '이름을 입력하세요')
+    setErr(2, '')
+    await joinTeam(name, email, code)
+
+  } else if (currentStep === 3) {
+    finish()
+  }
+}
+
+function prev() {
+  if (currentStep > 0) showStep(currentStep - 1)
+}
+
+async function loadTeams(url) {
+  const listEl = document.getElementById('team-list')
+  listEl.innerHTML = '<div class="no-teams loading-text">연결 중...</div>'
+  showStep(1)
+
+  try {
+    const r = await window.setup.fetchTeams(url)
+    teams = r.teams || []
+    if (!teams.length) {
+      listEl.innerHTML = '<div class="no-teams">등록된 팀이 없습니다.<br>관리자에게 문의하세요.</div>'
+      return
+    }
+    listEl.innerHTML = teams.map((t, i) => `
+      <div class="team-item" onclick="selectTeam(${i})" id="team-${i}">
+        <span class="team-name">${t.name}</span>
+        <span class="team-count">${t.member_count}명</span>
+      </div>
+    `).join('')
+  } catch (e) {
+    setErr(1, '서버에 연결할 수 없습니다: ' + e.message)
+    showStep(0)
+  }
+}
+
+function selectTeam(idx) {
+  document.querySelectorAll('.team-item').forEach(el => el.classList.remove('selected'))
+  document.getElementById('team-' + idx).classList.add('selected')
+  selectedTeam = teams[idx]
+  document.getElementById('btn-team-next').disabled = false
+}
+
+async function joinTeam(name, email, code) {
+  const url = document.getElementById('server-url').value.trim()
+  try {
+    const result = await window.setup.joinTeam({
+      url,
+      team_id: selectedTeam.id,
+      join_code: code,
+      name,
+      email,
+    })
+
+    // 설정 저장
+    await window.setup.saveConfig({
+      mode: 'team',
+      saas_url: url,
+      team_api_key: result.api_key,
+      member: name,
+      email,
+    })
+
+    // 완료 화면
+    document.getElementById('done-info').innerHTML = `
+      <div class="done-info-row"><span class="label">팀</span><span>${result.team}</span></div>
+      <div class="done-info-row"><span class="label">이름</span><span>${result.member}</span></div>
+      <div class="done-info-row"><span class="label">이메일</span><span>${email || '-'}</span></div>
+      <div class="done-info-row"><span class="label">서버</span><span>${url}</span></div>
+    `
+    showStep(3)
+  } catch (e) {
+    setErr(2, e.message || '가입 실패')
+  }
+}
+
+function finish() {
+  window.setup.finishSetup()
+}
+</script>
+</body>
+</html>
