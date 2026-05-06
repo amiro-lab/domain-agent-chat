@@ -1,7 +1,8 @@
-const { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain } = require('electron')
+const { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain, shell } = require('electron')
 const path = require('path')
 const https = require('https')
 const http = require('http')
+const log = require('./logger')
 const { launchChrome, findChrome, DEBUG_PORT } = require('./chrome')
 const { setupCapture } = require('./cdp')
 const { saveSession } = require('../capture/index')
@@ -77,6 +78,14 @@ function updateTrayMenu() {
         if (!setupWindow) createSetupWindow()
         else setupWindow.focus()
       },
+    },
+    {
+      label: '로그 열기',
+      click: () => shell.openPath(log.transports.file.getFile().path),
+    },
+    {
+      label: '로그 폴더 열기',
+      click: () => shell.showItemInFolder(log.transports.file.getFile().path),
     },
     { type: 'separator' },
     {
@@ -235,6 +244,8 @@ ipcMain.on('setup:finish', () => {
 // ── 앱 시작 ──────────────────────────────────────────────
 app.whenReady().then(() => {
   if (process.platform === 'darwin') app.dock.hide()
+
+  log.info('domain-agent-chat 시작 — 로그 파일:', log.transports.file.getFile().path)
 
   createTray()
 
