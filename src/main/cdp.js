@@ -17,6 +17,7 @@ function buildScript() {
   let lastCount = 0
   let lastUserCount = 0
   let contextDone = false
+  let forcedKey = ''
 
   function extract() {
     const host = location.hostname
@@ -51,9 +52,12 @@ function buildScript() {
       window.${QUERY_BINDING}(JSON.stringify({ content: userMsgs[0].content }))
     }
 
-    // !저장 트리거: 마지막 유저 메시지에 !저장 포함 시 즉시 강제 캡처
+    // !저장 트리거: 마지막 유저 메시지에 !저장 포함 시 즉시 강제 캡처 (동일 메시지에 대해 1회만)
     const lastUser = userMsgs[userMsgs.length - 1]
     if (lastUser && /!저장/.test(lastUser.content) && msgs.length >= 2) {
+      const key = userMsgs.length + ':' + lastUser.content
+      if (key === forcedKey) return
+      forcedKey = key
       clearTimeout(captureTimer)
       const platform = location.hostname.includes('chatgpt') ? 'chatgpt' : 'claude'
       const cleaned = msgs.map(m => ({
